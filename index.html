@@ -283,12 +283,26 @@
   function parseCSV(text){
     const lines=text.replace(/\r/g,"").split("\n").filter(Boolean);
     if(!lines.length) return {headers:[], rows:[]};
+
     const rawHeaders=splitCSVLine(lines[0]);
-    const mappedHeaders=rawHeaders.map(h=>headerMap[h]||h);
+
+    // 关键修复：过滤空表头列，避免新增字段被挤到超后面(XFB/XFC...)
+    const headerIndexes = [];
+    const mappedHeaders = [];
+    rawHeaders.forEach((h, idx) => {
+      const hh = String(h ?? "").trim();
+      if (!hh) return;
+      headerIndexes.push(idx);
+      mappedHeaders.push(headerMap[hh] || hh);
+    });
+
     const data=[];
     for(let i=1;i<lines.length;i++){
       const cols=splitCSVLine(lines[i]), obj={};
-      mappedHeaders.forEach((h,idx)=>obj[h]=cols[idx]??"");
+      mappedHeaders.forEach((h, j)=>{
+        const originalIdx = headerIndexes[j];
+        obj[h]=cols[originalIdx]??"";
+      });
       data.push(obj);
     }
     return {headers:mappedHeaders, rows:data};
@@ -299,12 +313,25 @@
     const ws=wb.Sheets[wb.SheetNames[0]];
     const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
     if(!aoa.length) return {headers:[],rows:[]};
+
     const rawHeaders=aoa[0].map(h=>String(h??"").trim());
-    const mappedHeaders=rawHeaders.map(h=>headerMap[h]||h);
+
+    // 关键修复：过滤空表头列
+    const headerIndexes = [];
+    const mappedHeaders = [];
+    rawHeaders.forEach((h, idx) => {
+      if (!h) return;
+      headerIndexes.push(idx);
+      mappedHeaders.push(headerMap[h] || h);
+    });
+
     const data=[];
     for(let i=1;i<aoa.length;i++){
       const row=aoa[i], obj={};
-      mappedHeaders.forEach((h,idx)=>obj[h]=row[idx]??"");
+      mappedHeaders.forEach((h, j)=>{
+        const originalIdx = headerIndexes[j];
+        obj[h]=row[originalIdx]??"";
+      });
       data.push(obj);
     }
     return {headers:mappedHeaders, rows:data};
@@ -331,13 +358,11 @@
   }
 
   function buildOutputHeaders(){
-    // 按你的需求：原有N列 + customer_type + Attend at 紧跟在后面
+    // 原有字段后面紧跟必要信息
     const out=[...originalHeaders];
     if(!out.includes("customer_type")) out.push("customer_type");
     if(!out.includes("Attend at")) out.push("Attend at");
-    // Country 是必须信息之一，若原始没有则也追加
     if(!out.includes("Country")) out.push("Country");
-    // 不要这些
     return out.filter(h=>h!=="lead_source" && h!=="event_name");
   }
 
