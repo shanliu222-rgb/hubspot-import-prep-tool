@@ -27,7 +27,6 @@
     .ok{background:#dcfce7;color:#166534}
     .warn{background:#fef3c7;color:#92400e}
     .danger{background:#fee2e2;color:#991b1b}
-    .hidden{display:none}
     table{width:100%;border-collapse:collapse;font-size:12px}
     th,td{border:1px solid var(--border);padding:6px;text-align:left}
     .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
@@ -78,7 +77,7 @@
         <select id="customerType">
           <option value="">--</option>
           <option value="Hytera Existing Customer">Hytera Existing Customer</option>
-          <option value="Potential Contact Third Party Data Base">Potential Contact Third Party Data Base</option>
+          <option value="Potential Contact">Potential Contact</option>
         </select>
         <div class="muted" id="customerTypeHint"></div>
       </div>
@@ -117,13 +116,10 @@
   <div class="card">
     <h2 id="actionTitle"></h2>
     <button id="btnValidate" type="button"></button>
-    <p style="margin-top:10px;">
-      <span id="statusBadge" class="badge warn"></span>
-    </p>
+    <p style="margin-top:10px;"><span id="statusBadge" class="badge warn"></span></p>
     <div id="statusMsg" class="muted"></div>
     <p id="fileNamePreview" class="muted" style="margin-top:8px;"></p>
     <p id="stats" class="muted"></p>
-
     <button id="btnExport" type="button" disabled></button>
 
     <div style="margin-top:12px;max-height:260px;overflow:auto">
@@ -292,7 +288,7 @@
     const T = txt();
     const v = el("customerType").value;
     if(v === "Hytera Existing Customer") el("customerTypeHint").textContent = T.customerTypeHint1;
-    else if(v === "Potential Contact Third Party Data Base") el("customerTypeHint").textContent = T.customerTypeHint2;
+    else if(v === "Potential Contact") el("customerTypeHint").textContent = T.customerTypeHint2;
     else el("customerTypeHint").textContent = "";
   }
 
@@ -302,7 +298,6 @@
   }
 
   function parseCSV(text){
-    // 轻量CSV解析（支持双引号内逗号）
     const lines = text.replace(/\r/g,"").split("\n").filter(x=>x.length>0);
     if(!lines.length) return [];
     const splitLine = (line) => {
@@ -377,13 +372,11 @@
       const existingCountries = new Set(rows.map(r=>(r.country||"").trim()).filter(Boolean));
       const hasMissingCountry = rows.some(r=>!(r.country||"").trim());
 
-      // 多国家 + 缺失 => 阻断
       if(existingCountries.size > 1 && hasMissingCountry){
         setStatus("danger", T.errCountryMulti);
         return;
       }
 
-      // 缺失国家 => 仅允许单一国家统一补齐
       if(hasMissingCountry){
         if(!selectedCountry){ setStatus("danger", T.errCountryNeedSelect); return; }
         rows.forEach(r=>{ if(!(r.country||"").trim()) r.country = selectedCountry; });
