@@ -112,7 +112,7 @@
       </div>
       <div class="col">
         <label id="eventNameLabel"></label>
-        <input id="eventName" type="text" placeholder="e.g. AI Security Roadshow Dubai" />
+        <input id="eventName" type="text" placeholder="e.g. dealer conference" />
       </div>
     </div>
   </div>
@@ -141,7 +141,7 @@
       notice: "内部使用声明 / Internal Use Notice：仅用于市场部HubSpot导入前整理；文件仅在浏览器本地处理，不上传、不保存。",
       guideTitle: "使用指导（仅线下活动）",
       guideList: [
-        "必须信息：Country、customer_type、Attend at。",
+        "必须信息：Country、Hytera Customer Type、Attend at。",
         "导出列顺序：原上传字段 + 新增必要字段（紧跟在后面）。",
         "Attend at 使用下拉选择，避免手填错误。"
       ],
@@ -182,7 +182,7 @@
       notice: "Internal Use Notice: local processing only, no upload/storage.",
       guideTitle: "Guide",
       guideList: [
-        "Required fields: Country, customer_type, Attend at.",
+        "Required fields: Country, Hytera Customer Type, Attend at.",
         "Export order: original uploaded columns + required fields appended at the end.",
         "Attend at uses dropdowns to avoid manual format errors."
       ],
@@ -285,8 +285,6 @@
     if(!lines.length) return {headers:[], rows:[]};
 
     const rawHeaders=splitCSVLine(lines[0]);
-
-    // 关键修复：过滤空表头列，避免新增字段被挤到超后面(XFB/XFC...)
     const headerIndexes = [];
     const mappedHeaders = [];
     rawHeaders.forEach((h, idx) => {
@@ -315,8 +313,6 @@
     if(!aoa.length) return {headers:[],rows:[]};
 
     const rawHeaders=aoa[0].map(h=>String(h??"").trim());
-
-    // 关键修复：过滤空表头列
     const headerIndexes = [];
     const mappedHeaders = [];
     rawHeaders.forEach((h, idx) => {
@@ -358,12 +354,11 @@
   }
 
   function buildOutputHeaders(){
-    // 原有字段后面紧跟必要信息
     const out=[...originalHeaders];
-    if(!out.includes("customer_type")) out.push("customer_type");
+    if(!out.includes("Hytera Customer Type")) out.push("Hytera Customer Type");
     if(!out.includes("Attend at")) out.push("Attend at");
     if(!out.includes("Country")) out.push("Country");
-    return out.filter(h=>h!=="lead_source" && h!=="event_name");
+    return out.filter(h=>h!=="lead_source" && h!=="event_name" && h!=="customer_type");
   }
 
   function renderPreview(data){
@@ -408,9 +403,17 @@
       rows.forEach(r=>{ if(!String(r["Country"]??"").trim()) r["Country"]=selectedCountry; });
     }
 
-    rows.forEach(r=>{ r["customer_type"]=customerType; r["Attend at"]=attendAt; });
+    rows.forEach(r=>{
+      r["Hytera Customer Type"]=customerType;
+      r["Attend at"]=attendAt;
+    });
 
-    const invalid=rows.filter(r=>!String(r["Country"]??"").trim()||!String(r["customer_type"]??"").trim()||!String(r["Attend at"]??"").trim());
+    const invalid=rows.filter(r =>
+      !String(r["Country"]??"").trim() ||
+      !String(r["Hytera Customer Type"]??"").trim() ||
+      !String(r["Attend at"]??"").trim()
+    );
+
     const total=rows.length, err=invalid.length, ok=total-err;
     if(err>0){ setStatus("danger",t.errRequiredStillMissing); el("stats").textContent=t.stats(total,ok,err); renderPreview(rows); return; }
 
