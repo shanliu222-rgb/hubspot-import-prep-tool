@@ -31,6 +31,7 @@
     th,td{border:1px solid var(--border);padding:6px;text-align:left}
     .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
     .lang button{width:auto;padding:8px 12px;background:#111827}
+    .date-row{display:flex;gap:8px}
   </style>
 </head>
 <body>
@@ -66,9 +67,7 @@
     <div class="row">
       <div class="col">
         <label id="countryLabel"></label>
-        <select id="countrySelect">
-          <option value="">--</option>
-        </select>
+        <select id="countrySelect"><option value="">--</option></select>
         <div class="muted" id="countryHint"></div>
       </div>
 
@@ -84,7 +83,12 @@
 
       <div class="col">
         <label id="attendAtLabel"></label>
-        <input id="attendAt" type="text" placeholder="YYYY/MM/DD" />
+        <div class="date-row">
+          <select id="attendYear"></select>
+          <select id="attendMonth"></select>
+          <select id="attendDay"></select>
+        </div>
+        <div class="muted" id="attendHint"></div>
       </div>
     </div>
   </div>
@@ -121,7 +125,6 @@
     <p id="fileNamePreview" class="muted" style="margin-top:8px;"></p>
     <p id="stats" class="muted"></p>
     <button id="btnExport" type="button" disabled></button>
-
     <div style="margin-top:12px;max-height:260px;overflow:auto">
       <table id="previewTable"></table>
     </div>
@@ -129,9 +132,7 @@
 
 </div>
 
-<!-- SheetJS for xlsx/xls parsing -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
 <script>
 (() => {
   const i18n = {
@@ -140,381 +141,284 @@
       notice: "内部使用声明 / Internal Use Notice：仅用于市场部HubSpot导入前整理；文件仅在浏览器本地处理，不上传、不保存。",
       guideTitle: "使用指导（仅线下活动）",
       guideList: [
-        "必须信息：国家（Country）、客户类型（Customer Type）、Attend at。",
-        "国家规则：若文件涉及多个国家且存在国家缺失，系统将阻断导出，请线下逐条补齐后重传。",
-        "Attend at 格式必须为 YYYY/MM/DD。",
-        "导出文件：保留原始上传字段 + 在末尾追加必要信息字段。"
+        "必须信息：Country、customer_type、Attend at。",
+        "导出列顺序：原上传字段 + 新增必要字段（紧跟在后面）。",
+        "Attend at 使用下拉选择，避免手填错误。"
       ],
       uploadTitle: "1) 上传数据文件",
-      uploadLabel: "上传文件（支持 CSV / XLSX / XLS）",
-      uploadHint: "首行为字段名。系统会读取第一个工作表（Excel）。",
-
+      uploadLabel: "上传文件（CSV / XLSX / XLS）",
+      uploadHint: "系统读取第一个工作表（Excel）。",
       requiredTitle: "2) 补充必填信息",
-      countryLabel: "国家（仅用于单一国家统一补齐）",
-      countryHint: "如果你确认本批数据是单一国家，可在此选择并自动填充缺失国家。",
+      countryLabel: "国家（单一国家可统一补齐）",
+      countryHint: "若数据多国家且存在缺失，将阻断导出。",
       customerTypeLabel: "客户类型（必选）",
       customerTypeHint1: "提示：Dealer or Distributor or Partner（仅提示）",
       customerTypeHint2: "提示：not Dealer or Distributor or Partner（仅提示）",
-      attendAtLabel: "Attend at（必填，YYYY/MM/DD）",
-
+      attendAtLabel: "Attend at（下拉选择）",
+      attendHint: "格式自动生成：YYYY/MM/DD",
       eventInfoTitle: "3) 活动信息（用于文件命名）",
       eventCategoryLabel: "活动类型（必选）",
       eventNameLabel: "活动名称（必填）",
-
       actionTitle: "4) 校验并导出",
       validateBtn: "开始校验",
       exportBtn: "导出 CSV",
       blocked: "未通过",
       ready: "可导出",
-
       errFile: "请先上传文件。",
-      errFormat: "仅支持 CSV / XLSX / XLS 文件。",
+      errFormat: "仅支持 CSV / XLSX / XLS。",
       errCustomerType: "请选择客户类型。",
-      errDate: "Attend at 格式必须是 YYYY/MM/DD。",
+      errDate: "请完整选择 Attend at 年/月/日。",
       errCategory: "请选择活动类型。",
       errEventName: "请填写活动名称。",
-      errCountryNeedSelect: "存在国家缺失，请先从下拉中选择一个国家，再次校验。",
-      errCountryMulti: "检测到可能涉及多个国家且存在缺失。请线下逐条补齐国家信息后重新上传。",
+      errCountryNeedSelect: "存在国家缺失，请先选择一个国家后再校验。",
+      errCountryMulti: "检测到多国家且有缺失，请线下逐条补齐国家后重传。",
       errRequiredStillMissing: "仍有必填项缺失，无法导出。",
-
       okPass: "校验通过，可导出。",
       stats: (t,v,e) => `总行数: ${t} ｜ 可上传: ${v} ｜ 错误: ${e}`,
       filePreview: "导出文件名预览："
     },
     en: {
       title: "HubSpot Offline Event Leads Import Tool",
-      notice: "Internal Use Notice: For marketing prep before HubSpot import only. Files are processed locally in the browser and are not uploaded or stored.",
-      guideTitle: "Guide (Offline Event only)",
+      notice: "Internal Use Notice: local processing only, no upload/storage.",
+      guideTitle: "Guide",
       guideList: [
-        "Required info: Country, Customer Type, Attend at.",
-        "Country rule: if multiple countries are involved AND country is missing in some rows, export is blocked.",
-        "Attend at format must be YYYY/MM/DD.",
-        "Output file keeps original uploaded columns + appends required fields at the end."
+        "Required fields: Country, customer_type, Attend at.",
+        "Export order: original uploaded columns + required fields appended at the end.",
+        "Attend at uses dropdowns to avoid manual format errors."
       ],
-      uploadTitle: "1) Upload data file",
-      uploadLabel: "Upload file (CSV / XLSX / XLS)",
-      uploadHint: "First row should be headers. For Excel, only the first sheet is read.",
-
-      requiredTitle: "2) Fill required information",
-      countryLabel: "Country (for global fill only when single-country batch)",
-      countryHint: "If this batch is single-country, select one country to fill missing values.",
+      uploadTitle: "1) Upload file",
+      uploadLabel: "Upload (CSV / XLSX / XLS)",
+      uploadHint: "For Excel, first sheet only.",
+      requiredTitle: "2) Required info",
+      countryLabel: "Country (single-country global fill)",
+      countryHint: "If multi-country + missing country, export is blocked.",
       customerTypeLabel: "Customer Type (required)",
-      customerTypeHint1: "Hint: Dealer or Distributor or Partner (hint only)",
-      customerTypeHint2: "Hint: not Dealer or Distributor or Partner (hint only)",
-      attendAtLabel: "Attend at (required, YYYY/MM/DD)",
-
-      eventInfoTitle: "3) Event info (for file naming)",
+      customerTypeHint1: "Hint: Dealer or Distributor or Partner",
+      customerTypeHint2: "Hint: not Dealer or Distributor or Partner",
+      attendAtLabel: "Attend at (dropdown)",
+      attendHint: "Auto format: YYYY/MM/DD",
+      eventInfoTitle: "3) Event info (file naming)",
       eventCategoryLabel: "Event Type (required)",
       eventNameLabel: "Event Name (required)",
-
-      actionTitle: "4) Validate and export",
+      actionTitle: "4) Validate & Export",
       validateBtn: "Validate",
       exportBtn: "Export CSV",
       blocked: "Blocked",
       ready: "Ready",
-
       errFile: "Please upload a file first.",
       errFormat: "Only CSV / XLSX / XLS are supported.",
       errCustomerType: "Please select Customer Type.",
-      errDate: "Attend at format must be YYYY/MM/DD.",
+      errDate: "Please select complete Attend at year/month/day.",
       errCategory: "Please select Event Type.",
       errEventName: "Please input Event Name.",
-      errCountryNeedSelect: "Country is missing. Select one country from dropdown and validate again.",
-      errCountryMulti: "Possible multi-country batch with missing country values. Please fill country row-by-row offline and re-upload.",
-      errRequiredStillMissing: "Required fields are still missing. Export is blocked.",
-
+      errCountryNeedSelect: "Country missing. Please select one country and validate again.",
+      errCountryMulti: "Multi-country + missing country detected. Please fill country row-by-row offline and re-upload.",
+      errRequiredStillMissing: "Required fields still missing. Export blocked.",
       okPass: "Validation passed. Ready to export.",
       stats: (t,v,e) => `Total: ${t} | Valid: ${v} | Error: ${e}`,
-      filePreview: "Output filename preview: "
+      filePreview: "Filename preview: "
     }
   };
 
   const countries = ["Uzbekistan","Ukraine","Tajikistan","Mongolia","Kyrgyzstan","Kazakhstan","Afghanistan","Georgia","Yemen","United Arab Emirates","Sierra Leone","Saudi Arabia","Qatar","Oman","Liberia","Kuwait","Iraq","Eritrea","Bahrain","Tanzania","Lebanon","Jordan","Vietnam","Singapore","Myanmar","New Zealand","India","Australia","Papua New Guinea","Macao(China)","Hong Kong(China)","Uganda","Türkiye","Somalia","Seychelles","Rwanda","Nigeria","Libya","Kenya","Ethiopia","Egypt","Djibouti","Azerbaijan","Sudan","South Sudan","Iran","Syria","Sri Lanka","Pakistan","Maldives","Malaysia","Bangladesh","Timor-Leste","Zimbabwe","Zambia","South Africa","Namibia","Mozambique","Mauritius","Malawi","Eswatini","Botswana","Angola","Lesotho","The Central African Republic","Guinea","Togo","Gambia","Sao Tome and Principe","Guinea-Bissau","Reunion","Tunisia","Senegal","Morocco","Mauritania","Madagascar","Israel","Cote d'lvoire","Cameroon","Burkina faso","Benin","Algeria","Burundi","Thailand","Philippines","Nauru","Micronesia","Kiribati","Palau","Marshall Islands","Cook Islands","Vanuatu","Samoa","Indonesia","Cambodia","Taiwan(China)","Nepal","Republic of Korea","Japan","Palestine","Laos","Equatorial Guinea","Mali","Niger","Cape Verde","Tonga","Tuvalu","Bhutan","Solomon Islands","Congo","Ghana","Gabon","Fiji","Congo, Democratic Republic of the","Chad","Brunei","Congo(Kinshasa)","Belarus","Russian Federation","Turkmenistan","Armenia","Malta","The Republic of the Congo"];
+  const headerMap = { "country":"Country","Country":"Country","国家":"Country","email":"Email","Email":"Email","邮箱":"Email","邮箱地址":"Email" };
 
-  // map common headers to standard display names used in export
-  const headerMap = {
-    "country":"Country","Country":"Country","国家":"Country",
-    "email":"Email","Email":"Email","邮箱":"Email","邮箱地址":"Email"
-  };
-
-  let lang = "zh";
-  let rows = [];
-  let originalHeaders = [];
-  let canExport = false;
-  let lastFilename = "";
-
+  let lang = "zh", rows = [], originalHeaders = [], canExport = false, lastFilename = "";
   const el = id => document.getElementById(id);
   const T = () => i18n[lang];
 
-  function initCountry(){
-    const unique = [...new Set(countries)].sort((a,b)=>a.localeCompare(b));
-    const sel = el("countrySelect");
-    sel.innerHTML = '<option value="">--</option>';
-    unique.forEach(c=>{
-      const op = document.createElement("option");
-      op.value = c;
-      op.textContent = c;
-      sel.appendChild(op);
+  function initCountryAndDate(){
+    const csel = el("countrySelect");
+    [...new Set(countries)].sort((a,b)=>a.localeCompare(b)).forEach(c=>{
+      const o=document.createElement("option"); o.value=c; o.textContent=c; csel.appendChild(o);
     });
+
+    const y = el("attendYear"), m = el("attendMonth"), d = el("attendDay");
+    y.innerHTML = '<option value="">YYYY</option>';
+    m.innerHTML = '<option value="">MM</option>';
+    d.innerHTML = '<option value="">DD</option>';
+
+    for(let yy=2026; yy<=2046; yy++){
+      const o=document.createElement("option"); o.value=String(yy); o.textContent=String(yy); y.appendChild(o);
+    }
+    for(let mm=1; mm<=12; mm++){
+      const v=String(mm).padStart(2,"0");
+      const o=document.createElement("option"); o.value=v; o.textContent=v; m.appendChild(o);
+    }
+    for(let dd=1; dd<=31; dd++){
+      const v=String(dd).padStart(2,"0");
+      const o=document.createElement("option"); o.value=v; o.textContent=v; d.appendChild(o);
+    }
   }
 
   function applyLang(){
     const t = T();
-    el("title").textContent = t.title;
-    el("notice").textContent = t.notice;
+    el("title").textContent = t.title; el("notice").textContent = t.notice;
     el("guideTitle").textContent = t.guideTitle;
     el("guideList").innerHTML = t.guideList.map(x=>`<li>${x}</li>`).join("");
-
-    el("uploadTitle").textContent = t.uploadTitle;
-    el("uploadLabel").textContent = t.uploadLabel;
-    el("uploadHint").textContent = t.uploadHint;
-
-    el("requiredTitle").textContent = t.requiredTitle;
-    el("countryLabel").textContent = t.countryLabel;
-    el("countryHint").textContent = t.countryHint;
-    el("customerTypeLabel").textContent = t.customerTypeLabel;
-    el("attendAtLabel").textContent = t.attendAtLabel;
-
-    el("eventInfoTitle").textContent = t.eventInfoTitle;
-    el("eventCategoryLabel").textContent = t.eventCategoryLabel;
-    el("eventNameLabel").textContent = t.eventNameLabel;
-
-    el("actionTitle").textContent = t.actionTitle;
-    el("btnValidate").textContent = t.validateBtn;
-    el("btnExport").textContent = t.exportBtn;
-
+    el("uploadTitle").textContent=t.uploadTitle; el("uploadLabel").textContent=t.uploadLabel; el("uploadHint").textContent=t.uploadHint;
+    el("requiredTitle").textContent=t.requiredTitle; el("countryLabel").textContent=t.countryLabel; el("countryHint").textContent=t.countryHint;
+    el("customerTypeLabel").textContent=t.customerTypeLabel; el("attendAtLabel").textContent=t.attendAtLabel; el("attendHint").textContent=t.attendHint;
+    el("eventInfoTitle").textContent=t.eventInfoTitle; el("eventCategoryLabel").textContent=t.eventCategoryLabel; el("eventNameLabel").textContent=t.eventNameLabel;
+    el("actionTitle").textContent=t.actionTitle; el("btnValidate").textContent=t.validateBtn; el("btnExport").textContent=t.exportBtn;
     refreshCustomerHint();
   }
 
   function refreshCustomerHint(){
-    const t = T();
-    const v = el("customerType").value;
-    if(v === "Hytera Existing Customer") el("customerTypeHint").textContent = t.customerTypeHint1;
-    else if(v === "Potential Contact") el("customerTypeHint").textContent = t.customerTypeHint2;
-    else el("customerTypeHint").textContent = "";
+    const t=T(), v=el("customerType").value;
+    el("customerTypeHint").textContent = v==="Hytera Existing Customer" ? t.customerTypeHint1 : v==="Potential Contact" ? t.customerTypeHint2 : "";
   }
 
   function splitCSVLine(line){
-    const out=[]; let cur=""; let q=false;
+    const out=[]; let cur="", q=false;
     for(let i=0;i<line.length;i++){
       const ch=line[i];
-      if(ch === '"'){
-        if(q && line[i+1] === '"'){ cur += '"'; i++; }
-        else q = !q;
-      } else if(ch === "," && !q){
-        out.push(cur); cur="";
-      } else {
-        cur += ch;
-      }
+      if(ch === '"'){ if(q && line[i+1] === '"'){ cur+='"'; i++; } else q=!q; }
+      else if(ch === "," && !q){ out.push(cur); cur=""; }
+      else cur+=ch;
     }
-    out.push(cur);
-    return out.map(v=>v.trim());
+    out.push(cur); return out.map(v=>v.trim());
   }
 
   function parseCSV(text){
-    const lines = text.replace(/\r/g,"").split("\n").filter(Boolean);
-    if(!lines.length) return { headers: [], rows: [] };
-
-    const rawHeaders = splitCSVLine(lines[0]);
-    const mappedHeaders = rawHeaders.map(h => headerMap[h] || h);
-
-    const data = [];
+    const lines=text.replace(/\r/g,"").split("\n").filter(Boolean);
+    if(!lines.length) return {headers:[], rows:[]};
+    const rawHeaders=splitCSVLine(lines[0]);
+    const mappedHeaders=rawHeaders.map(h=>headerMap[h]||h);
+    const data=[];
     for(let i=1;i<lines.length;i++){
-      const cols = splitCSVLine(lines[i]);
-      const obj = {};
-      mappedHeaders.forEach((h,idx)=> obj[h] = cols[idx] ?? "");
+      const cols=splitCSVLine(lines[i]), obj={};
+      mappedHeaders.forEach((h,idx)=>obj[h]=cols[idx]??"");
       data.push(obj);
     }
-    return { headers: mappedHeaders, rows: data };
+    return {headers:mappedHeaders, rows:data};
   }
 
   function parseExcel(buffer){
-    const wb = XLSX.read(buffer, { type:"array" });
-    const sheetName = wb.SheetNames[0];
-    const ws = wb.Sheets[sheetName];
-
-    // 2D array form, keep header order exactly from sheet
-    const aoa = XLSX.utils.sheet_to_json(ws, { header:1, defval:"" });
-    if(!aoa.length) return { headers: [], rows: [] };
-
-    const rawHeaders = aoa[0].map(h => String(h ?? "").trim());
-    const mappedHeaders = rawHeaders.map(h => headerMap[h] || h);
-
-    const data = [];
+    const wb=XLSX.read(buffer,{type:"array"});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+    if(!aoa.length) return {headers:[],rows:[]};
+    const rawHeaders=aoa[0].map(h=>String(h??"").trim());
+    const mappedHeaders=rawHeaders.map(h=>headerMap[h]||h);
+    const data=[];
     for(let i=1;i<aoa.length;i++){
-      const row = aoa[i];
-      const obj = {};
-      mappedHeaders.forEach((h,idx)=> obj[h] = row[idx] ?? "");
+      const row=aoa[i], obj={};
+      mappedHeaders.forEach((h,idx)=>obj[h]=row[idx]??"");
       data.push(obj);
     }
-    return { headers: mappedHeaders, rows: data };
+    return {headers:mappedHeaders, rows:data};
   }
 
-  async function readFileToRows(file){
-    const name = (file.name || "").toLowerCase();
-    if(name.endsWith(".csv")){
-      const text = await file.text();
-      return parseCSV(text);
-    }
-    if(name.endsWith(".xlsx") || name.endsWith(".xls")){
-      const buffer = await file.arrayBuffer();
-      return parseExcel(buffer);
-    }
+  async function readFile(file){
+    const name=(file.name||"").toLowerCase();
+    if(name.endsWith(".csv")) return parseCSV(await file.text());
+    if(name.endsWith(".xlsx") || name.endsWith(".xls")) return parseExcel(await file.arrayBuffer());
     throw new Error("unsupported");
   }
 
-  function validDate(v){
-    return /^\d{4}\/\d{2}\/\d{2}$/.test(v);
+  function getAttendAt(){
+    const y=el("attendYear").value, m=el("attendMonth").value, d=el("attendDay").value;
+    if(!y || !m || !d) return "";
+    return `${y}/${m}/${d}`;
   }
 
   function setStatus(type,msg){
-    const t = T();
-    const b = el("statusBadge");
-    if(type==="ok"){ b.className="badge ok"; b.textContent=t.ready; }
-    else if(type==="danger"){ b.className="badge danger"; b.textContent=t.blocked; }
-    else { b.className="badge warn"; b.textContent=t.blocked; }
+    const t=T(), b=el("statusBadge");
+    b.className = type==="ok" ? "badge ok" : type==="danger" ? "badge danger" : "badge warn";
+    b.textContent = type==="ok" ? t.ready : t.blocked;
     el("statusMsg").textContent = msg || "";
   }
 
-  // Keep original uploaded columns + append required fields at end
-  // No lead_source / event_name in export
   function buildOutputHeaders(){
-    const requiredTail = ["Country","customer_type","Attend at"];
-    const out = [...originalHeaders];
-    requiredTail.forEach(h => {
-      if(!out.includes(h)) out.push(h);
-    });
-    return out.filter(h => h !== "lead_source" && h !== "event_name");
+    // 按你的需求：原有N列 + customer_type + Attend at 紧跟在后面
+    const out=[...originalHeaders];
+    if(!out.includes("customer_type")) out.push("customer_type");
+    if(!out.includes("Attend at")) out.push("Attend at");
+    // Country 是必须信息之一，若原始没有则也追加
+    if(!out.includes("Country")) out.push("Country");
+    // 不要这些
+    return out.filter(h=>h!=="lead_source" && h!=="event_name");
   }
 
   function renderPreview(data){
-    const headers = buildOutputHeaders();
-    let html = "<thead><tr>" + headers.map(h=>`<th>${h}</th>`).join("") + "</tr></thead><tbody>";
-    data.slice(0,20).forEach(r=>{
-      html += "<tr>" + headers.map(h=>`<td>${r[h] ?? ""}</td>`).join("") + "</tr>";
-    });
-    html += "</tbody>";
-    el("previewTable").innerHTML = html;
+    const headers=buildOutputHeaders();
+    let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"</tr></thead><tbody>";
+    data.slice(0,20).forEach(r=>{ html+="<tr>"+headers.map(h=>`<td>${r[h]??""}</td>`).join("")+"</tr>"; });
+    html+="</tbody>"; el("previewTable").innerHTML=html;
   }
 
   async function validateAll(){
-    const t = T();
-    canExport = false;
-    el("btnExport").disabled = true;
-    el("fileNamePreview").textContent = "";
-    el("stats").textContent = "";
+    const t=T(); canExport=false; el("btnExport").disabled=true;
+    el("fileNamePreview").textContent=""; el("stats").textContent="";
 
-    const file = el("fileInput").files[0];
-    if(!file){ setStatus("danger", t.errFile); return; }
+    const file=el("fileInput").files[0];
+    if(!file){ setStatus("danger",t.errFile); return; }
 
-    const lower = (file.name || "").toLowerCase();
-    if(!(lower.endsWith(".csv") || lower.endsWith(".xlsx") || lower.endsWith(".xls"))){
-      setStatus("danger", t.errFormat);
-      return;
-    }
+    const lower=(file.name||"").toLowerCase();
+    if(!(lower.endsWith(".csv")||lower.endsWith(".xlsx")||lower.endsWith(".xls"))){ setStatus("danger",t.errFormat); return; }
 
-    const customerType = el("customerType").value;
-    const attendAt = el("attendAt").value.trim();
-    const selectedCountry = el("countrySelect").value;
-    const eventCategory = el("eventCategory").value;
-    const eventName = el("eventName").value.trim();
+    const customerType=el("customerType").value;
+    const attendAt=getAttendAt();
+    const selectedCountry=el("countrySelect").value;
+    const eventCategory=el("eventCategory").value;
+    const eventName=el("eventName").value.trim();
 
-    if(!customerType){ setStatus("danger", t.errCustomerType); return; }
-    if(!validDate(attendAt)){ setStatus("danger", t.errDate); return; }
-    if(!eventCategory){ setStatus("danger", t.errCategory); return; }
-    if(!eventName){ setStatus("danger", t.errEventName); return; }
+    if(!customerType){ setStatus("danger",t.errCustomerType); return; }
+    if(!attendAt){ setStatus("danger",t.errDate); return; }
+    if(!eventCategory){ setStatus("danger",t.errCategory); return; }
+    if(!eventName){ setStatus("danger",t.errEventName); return; }
 
     let parsed;
-    try{
-      parsed = await readFileToRows(file);
-    }catch(e){
-      setStatus("danger", t.errFormat);
-      return;
-    }
+    try{ parsed=await readFile(file); }catch{ setStatus("danger",t.errFormat); return; }
 
-    originalHeaders = parsed.headers;
-    rows = parsed.rows;
+    originalHeaders=parsed.headers; rows=parsed.rows;
 
-    const existingCountries = new Set(rows.map(r => String(r["Country"] ?? "").trim()).filter(Boolean));
-    const hasMissingCountry = rows.some(r => !String(r["Country"] ?? "").trim());
+    const existingCountries=new Set(rows.map(r=>String(r["Country"]??"").trim()).filter(Boolean));
+    const hasMissingCountry=rows.some(r=>!String(r["Country"]??"").trim());
 
-    if(existingCountries.size > 1 && hasMissingCountry){
-      setStatus("danger", t.errCountryMulti);
-      return;
-    }
-
+    if(existingCountries.size>1 && hasMissingCountry){ setStatus("danger",t.errCountryMulti); return; }
     if(hasMissingCountry){
-      if(!selectedCountry){
-        setStatus("danger", t.errCountryNeedSelect);
-        return;
-      }
-      rows.forEach(r => {
-        if(!String(r["Country"] ?? "").trim()) r["Country"] = selectedCountry;
-      });
+      if(!selectedCountry){ setStatus("danger",t.errCountryNeedSelect); return; }
+      rows.forEach(r=>{ if(!String(r["Country"]??"").trim()) r["Country"]=selectedCountry; });
     }
 
-    // append required info to each row
-    rows.forEach(r=>{
-      r["customer_type"] = customerType;
-      r["Attend at"] = attendAt;
-    });
+    rows.forEach(r=>{ r["customer_type"]=customerType; r["Attend at"]=attendAt; });
 
-    const invalid = rows.filter(r =>
-      !String(r["Country"] ?? "").trim() ||
-      !String(r["customer_type"] ?? "").trim() ||
-      !String(r["Attend at"] ?? "").trim()
-    );
+    const invalid=rows.filter(r=>!String(r["Country"]??"").trim()||!String(r["customer_type"]??"").trim()||!String(r["Attend at"]??"").trim());
+    const total=rows.length, err=invalid.length, ok=total-err;
+    if(err>0){ setStatus("danger",t.errRequiredStillMissing); el("stats").textContent=t.stats(total,ok,err); renderPreview(rows); return; }
 
-    const total = rows.length;
-    const err = invalid.length;
-    const ok = total - err;
+    const safe=s=>s.replace(/[\\/:*?"<>|]+/g,"-").trim();
+    lastFilename=`${safe(eventCategory)}_${safe(eventName)}.csv`;
 
-    if(err > 0){
-      setStatus("danger", t.errRequiredStillMissing);
-      el("stats").textContent = t.stats(total,ok,err);
-      renderPreview(rows);
-      return;
-    }
-
-    // filename: 活动类型+活动名称
-    const safe = s => s.replace(/[\\/:*?"<>|]+/g,"-").trim();
-    lastFilename = `${safe(eventCategory)}_${safe(eventName)}.csv`;
-
-    setStatus("ok", t.okPass);
-    el("fileNamePreview").textContent = t.filePreview + lastFilename;
-    el("stats").textContent = t.stats(total,ok,err);
+    setStatus("ok",t.okPass);
+    el("fileNamePreview").textContent=t.filePreview+lastFilename;
+    el("stats").textContent=t.stats(total,ok,err);
     renderPreview(rows);
 
-    canExport = true;
-    el("btnExport").disabled = false;
+    canExport=true; el("btnExport").disabled=false;
   }
 
   function exportCSV(){
     if(!canExport) return;
-    const headers = buildOutputHeaders();
-    const esc = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
-    const lines = [headers.join(",")];
-    rows.forEach(r=>{
-      lines.push(headers.map(h => esc(r[h])).join(","));
-    });
-
-    // UTF-8 BOM helps Excel open Chinese correctly
-    const csvContent = "\uFEFF" + lines.join("\n");
-    const blob = new Blob([csvContent], {type:"text/csv;charset=utf-8;"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = lastFilename || "offline_event_export.csv";
-    a.click();
+    const headers=buildOutputHeaders();
+    const esc=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+    const lines=[headers.join(",")];
+    rows.forEach(r=>lines.push(headers.map(h=>esc(r[h])).join(",")));
+    const blob=new Blob(["\uFEFF"+lines.join("\n")],{type:"text/csv;charset=utf-8;"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download=lastFilename||"offline_event_export.csv"; a.click();
     URL.revokeObjectURL(a.href);
   }
 
-  el("btnZh").addEventListener("click", ()=>{ lang="zh"; applyLang(); });
-  el("btnEn").addEventListener("click", ()=>{ lang="en"; applyLang(); });
-  el("customerType").addEventListener("change", refreshCustomerHint);
-  el("btnValidate").addEventListener("click", validateAll);
-  el("btnExport").addEventListener("click", exportCSV);
+  el("btnZh").addEventListener("click",()=>{lang="zh";applyLang();});
+  el("btnEn").addEventListener("click",()=>{lang="en";applyLang();});
+  el("customerType").addEventListener("change",refreshCustomerHint);
+  el("btnValidate").addEventListener("click",validateAll);
+  el("btnExport").addEventListener("click",exportCSV);
 
-  initCountry();
+  initCountryAndDate();
   applyLang();
 })();
 </script>
