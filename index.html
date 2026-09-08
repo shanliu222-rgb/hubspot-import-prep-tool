@@ -3,52 +3,47 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HubSpot Import Prep Tool</title>
+  <title>HubSpot Offline Event Leads Import Tool</title>
   <meta name="robots" content="noindex,nofollow" />
   <style>
     :root{
-      --bg:#f7f8fa; --card:#fff; --text:#1f2937; --muted:#6b7280;
-      --primary:#2563eb; --ok:#16a34a; --warn:#d97706; --danger:#dc2626; --border:#e5e7eb;
+      --bg:#f6f8fb; --card:#fff; --text:#1f2937; --muted:#6b7280;
+      --primary:#2563eb; --ok:#15803d; --warn:#b45309; --danger:#b91c1c; --border:#e5e7eb;
     }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
-    .wrap{max-width:1000px;margin:24px auto;padding:0 16px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px}
-    h1{margin:0 0 10px;font-size:24px}
-    h2{font-size:18px;margin:0 0 10px}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-    .col{flex:1;min-width:220px}
-    label{display:block;font-weight:600;margin-bottom:6px}
-    select,input[type="text"],input[type="file"]{
-      width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;background:#fff
-    }
-    button{
-      border:0;background:var(--primary);color:#fff;padding:10px 14px;border-radius:8px;cursor:pointer
-    }
-    button.secondary{background:#374151}
-    button:disabled{opacity:.5;cursor:not-allowed}
+    .wrap{max-width:980px;margin:24px auto;padding:0 14px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+    h1{margin:0 0 8px;font-size:26px}
+    h2{margin:0 0 10px;font-size:18px}
     .muted{color:var(--muted);font-size:13px}
-    .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .col{flex:1;min-width:240px}
+    label{display:block;font-weight:600;margin:8px 0 6px}
+    input,select,button{width:100%;padding:10px;border-radius:8px;border:1px solid #d1d5db;background:#fff}
+    button{border:0;background:var(--primary);color:#fff;cursor:pointer}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px}
     .ok{background:#dcfce7;color:#166534}
     .warn{background:#fef3c7;color:#92400e}
+    .danger{background:#fee2e2;color:#991b1b}
     .hidden{display:none}
-    ul{margin:8px 0 0 18px}
-    table{width:100%;border-collapse:collapse;font-size:13px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
     th,td{border:1px solid var(--border);padding:6px;text-align:left}
     .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-    .lang-switch button{background:#111827}
-    .footer-note{font-size:12px;color:#6b7280}
+    .lang button{width:auto;padding:8px 12px;background:#111827}
   </style>
 </head>
 <body>
 <div class="wrap">
+
   <div class="card">
     <div class="topbar">
       <div>
         <h1 id="title"></h1>
-        <div class="muted" id="internalNotice"></div>
+        <div class="muted" id="notice"></div>
       </div>
-      <div class="lang-switch">
+      <div class="lang">
         <button id="btnZh" type="button">中文</button>
         <button id="btnEn" type="button">EN</button>
       </div>
@@ -56,341 +51,403 @@
   </div>
 
   <div class="card">
-    <h2 id="step1Title"></h2>
-    <div class="row">
-      <div class="col">
-        <label id="dataTypeLabel" for="dataType"></label>
-        <select id="dataType">
-          <option value="">--</option>
-          <option value="third_party">第三方购买数据 / Third-party Purchased Data</option>
-          <option value="event_attendee">活动参会线索 / Event Attendee Leads</option>
-        </select>
-      </div>
-    </div>
-    <div id="guideBox" class="hidden" style="margin-top:10px">
-      <h2 id="guideTitle"></h2>
-      <ul id="guideList"></ul>
-    </div>
+    <h2 id="guideTitle"></h2>
+    <ul id="guideList"></ul>
   </div>
 
   <div class="card">
-    <h2 id="stepUploadTitle"></h2>
+    <h2 id="uploadTitle"></h2>
     <label id="uploadLabel" for="fileInput"></label>
     <input id="fileInput" type="file" accept=".csv" />
     <div class="muted" id="uploadHint"></div>
   </div>
 
   <div class="card">
-    <h2 id="stepCheckTitle"></h2>
-    <button id="btnProcess" type="button"></button>
-    <div id="resultBox" class="hidden" style="margin-top:12px">
-      <p><span id="totalRowsTxt"></span> | <span id="validRowsTxt"></span> | <span id="invalidRowsTxt"></span></p>
-      <p id="countryCheckMsg"></p>
-
-      <div id="dynamicFillBox" class="hidden">
-        <div class="row">
-          <div class="col">
-            <label id="fillEventLabel" for="fillEvent"></label>
-            <input id="fillEvent" type="text" />
-          </div>
-          <div class="col">
-            <label id="fillCountryLabel" for="fillCountry"></label>
-            <input id="fillCountry" type="text" placeholder="e.g. US / CN" />
-          </div>
-        </div>
-        <div style="margin-top:10px">
-          <button id="btnApplyFill" type="button" class="secondary"></button>
-        </div>
+    <h2 id="requiredTitle"></h2>
+    <div class="row">
+      <div class="col">
+        <label id="countryLabel"></label>
+        <select id="countrySelect">
+          <option value="">--</option>
+        </select>
+        <div class="muted" id="countryHint"></div>
       </div>
 
-      <div style="margin-top:12px">
-        <span id="exportStatus" class="badge warn"></span>
+      <div class="col">
+        <label id="customerTypeLabel"></label>
+        <select id="customerType">
+          <option value="">--</option>
+          <option value="Hytera Existing Customer">Hytera Existing Customer</option>
+          <option value="Potential Contact Third Party Data Base">Potential Contact Third Party Data Base</option>
+        </select>
+        <div class="muted" id="customerTypeHint"></div>
       </div>
 
-      <div style="margin-top:12px">
-        <button id="btnExport" type="button" disabled></button>
-      </div>
-
-      <div style="margin-top:14px;overflow:auto;max-height:260px">
-        <table id="previewTable"></table>
+      <div class="col">
+        <label id="meetingDateLabel"></label>
+        <input id="meetingDate" type="text" placeholder="YYYY/MM/DD" />
       </div>
     </div>
   </div>
 
   <div class="card">
-    <div class="footer-note" id="footerNote"></div>
+    <h2 id="eventInfoTitle"></h2>
+    <div class="row">
+      <div class="col">
+        <label id="eventCategoryLabel"></label>
+        <select id="eventCategory">
+          <option value="">--</option>
+          <option>Exhibition</option>
+          <option>Offline Activity</option>
+          <option>Sales Contact</option>
+          <option>Dealer Distributor</option>
+          <option>Promotion</option>
+          <option>Third Party Database</option>
+          <option>Staff</option>
+          <option>Online Webinar</option>
+        </select>
+      </div>
+      <div class="col">
+        <label id="eventNameLabel"></label>
+        <input id="eventName" type="text" placeholder="e.g. AI Security Roadshow Dubai" />
+      </div>
+    </div>
   </div>
+
+  <div class="card">
+    <h2 id="actionTitle"></h2>
+    <button id="btnValidate" type="button"></button>
+    <p style="margin-top:10px;">
+      <span id="statusBadge" class="badge warn"></span>
+    </p>
+    <div id="statusMsg" class="muted"></div>
+    <p id="fileNamePreview" class="muted" style="margin-top:8px;"></p>
+    <p id="stats" class="muted"></p>
+
+    <button id="btnExport" type="button" disabled></button>
+
+    <div style="margin-top:12px;max-height:260px;overflow:auto">
+      <table id="previewTable"></table>
+    </div>
+  </div>
+
 </div>
 
 <script>
 (() => {
   const i18n = {
     zh: {
-      title: "HubSpot 上传前数据整理工具",
-      internalNotice: "内部使用声明 / Internal Use Notice：本工具仅用于市场部在 HubSpot 上传前的数据整理。所有文件仅在浏览器本地处理，不会上传或保存到服务器。",
-      step1Title: "步骤 1：选择数据类型并查看指导",
-      dataTypeLabel: "数据类型",
-      guide: {
-        third_party: {
-          title: "第三方购买数据指导",
-          points: ["确保 email/company/country 字段可用", "如果国家不唯一，请线下补齐后重传", "建议先去重再上传"]
-        },
-        event_attendee: {
-          title: "活动参会线索指导",
-          points: ["确保 email/event_name/country 字段可用", "活动名称可在本页统一补齐", "如果国家不唯一，请线下补齐后重传"]
-        }
-      },
-      stepUploadTitle: "步骤 2：上传 CSV 文件",
-      uploadLabel: "上传文件（仅 CSV）",
-      uploadHint: "建议 UTF-8 编码。首行为字段名。",
-      stepCheckTitle: "步骤 3：检查、补齐并导出",
-      process: "开始处理",
-      fillEventLabel: "活动名称（当缺失时必填）",
-      fillCountryLabel: "国家（当缺失时可统一补齐）",
-      applyFill: "应用补齐",
+      title: "HubSpot 线下活动线索导入工具",
+      notice: "内部使用声明 / Internal Use Notice：仅用于市场部HubSpot导入前整理；文件仅在浏览器本地处理，不上传、不保存。",
+      guideTitle: "使用指导（仅线下活动）",
+      guideList: [
+        "必须信息：国家（country）、客户类型（customer_type）、会议时间（meeting_date）。",
+        "国家规则：若文件涉及多个国家且存在国家缺失，系统将阻断导出，请线下逐条补齐后重传。",
+        "会议时间格式必须为 YYYY/MM/DD。",
+        "活动类别 + 活动名称用于导出文件命名。"
+      ],
+      uploadTitle: "1) 上传数据文件",
+      uploadLabel: "上传 CSV 文件",
+      uploadHint: "仅支持 CSV；首行为字段名（如 Email, Country, Event Name）。",
+
+      requiredTitle: "2) 补充必填信息",
+      countryLabel: "国家（仅用于单一国家统一补齐）",
+      countryHint: "如果你确认本批数据是单一国家，可在此选择并自动填充缺失国家。",
+      customerTypeLabel: "客户类型（必选）",
+      customerTypeHint1: "提示：Dealer or Distributor or Partner（仅提示，不写入额外值）",
+      customerTypeHint2: "提示：not Dealer or Distributor or Partner（仅提示，不写入额外值）",
+      meetingDateLabel: "会议时间（必填，YYYY/MM/DD）",
+
+      eventInfoTitle: "3) 活动信息（用于文件命名）",
+      eventCategoryLabel: "活动类别（必选）",
+      eventNameLabel: "活动名称（必填）",
+
+      actionTitle: "4) 校验并导出",
+      validateBtn: "开始校验",
       exportBtn: "导出 HubSpot 可上传 CSV",
-      footer: "提示：如国家涉及多个国家，请线下逐行补齐后再上传。",
-      totalRows: "总行数",
-      validRows: "可上传行数",
-      invalidRows: "错误行数",
-      statusBlocked: "未满足导出条件",
-      statusReady: "已满足导出条件",
-      countrySingleOk: "国家检查：可继续（单一国家或已完整）",
-      countryMultiBlock: "国家检查：疑似多国家且缺失，已阻断导出，请线下补齐后重传。",
-      noDataType: "请先选择数据类型",
-      noFile: "请先上传 CSV 文件",
-      doneFill: "已应用补齐规则。"
+      blocked: "未通过",
+      ready: "可导出",
+
+      errFile: "请先上传 CSV 文件。",
+      errCustomerType: "请选择客户类型。",
+      errDate: "Meeting Date 格式必须是 YYYY/MM/DD。",
+      errCategory: "请选择活动类别。",
+      errEventName: "请填写活动名称。",
+      errCountryNeedSelect: "存在国家缺失，请先从下拉中选择一个国家，再次校验。",
+      errCountryMulti: "检测到可能涉及多个国家且存在缺失。请线下逐条补齐国家信息后重新上传。",
+      errRequiredStillMissing: "仍有必填项缺失，无法导出。",
+
+      okPass: "校验通过，可导出。",
+      stats: (t,v,e) => `总行数: ${t} ｜ 可上传: ${v} ｜ 错误: ${e}`,
+      filePreview: "导出文件名预览："
     },
     en: {
-      title: "HubSpot Import Prep Tool",
-      internalNotice: "Internal Use Notice: This tool is for Marketing team data preparation before HubSpot import. All files are processed locally in the browser and are not uploaded to or stored on any server.",
-      step1Title: "Step 1: Select data type and read guidance",
-      dataTypeLabel: "Data Type",
-      guide: {
-        third_party: {
-          title: "Third-party Purchased Data Guidance",
-          points: ["Make sure email/company/country are available", "If country is mixed, fill row-by-row offline and re-upload", "Deduplicate before import is recommended"]
-        },
-        event_attendee: {
-          title: "Event Attendee Leads Guidance",
-          points: ["Make sure email/event_name/country are available", "Event name can be globally filled on this page", "If country is mixed, fill row-by-row offline and re-upload"]
-        }
-      },
-      stepUploadTitle: "Step 2: Upload CSV file",
-      uploadLabel: "Upload file (CSV only)",
-      uploadHint: "UTF-8 recommended. First row must be headers.",
-      stepCheckTitle: "Step 3: Validate, fill, and export",
-      process: "Process",
-      fillEventLabel: "Event Name (required if missing)",
-      fillCountryLabel: "Country (global fill if missing)",
-      applyFill: "Apply Fill",
+      title: "HubSpot Offline Event Leads Import Tool",
+      notice: "Internal Use Notice: For marketing prep before HubSpot import only. Files are processed locally in the browser and are not uploaded or stored.",
+      guideTitle: "Guide (Offline Event only)",
+      guideList: [
+        "Required info: country, customer_type, meeting_date.",
+        "Country rule: if multiple countries are involved AND country is missing in some rows, export is blocked.",
+        "Meeting date format must be YYYY/MM/DD.",
+        "Event category + event name are used for output file naming."
+      ],
+      uploadTitle: "1) Upload data file",
+      uploadLabel: "Upload CSV file",
+      uploadHint: "CSV only; first row should be headers (e.g., Email, Country, Event Name).",
+
+      requiredTitle: "2) Fill required information",
+      countryLabel: "Country (for global fill only when single-country batch)",
+      countryHint: "If this batch is single-country, select one country to fill missing values.",
+      customerTypeLabel: "Customer Type (required)",
+      customerTypeHint1: "Hint: Dealer or Distributor or Partner (hint only, not appended as value)",
+      customerTypeHint2: "Hint: not Dealer or Distributor or Partner (hint only, not appended as value)",
+      meetingDateLabel: "Meeting Date (required, YYYY/MM/DD)",
+
+      eventInfoTitle: "3) Event info (for file naming)",
+      eventCategoryLabel: "Event Category (required)",
+      eventNameLabel: "Event Name (required)",
+
+      actionTitle: "4) Validate and export",
+      validateBtn: "Validate",
       exportBtn: "Export HubSpot-ready CSV",
-      footer: "Note: if multiple countries are involved, fill country per row offline before upload.",
-      totalRows: "Total rows",
-      validRows: "Valid rows",
-      invalidRows: "Invalid rows",
-      statusBlocked: "Export is blocked",
-      statusReady: "Ready to export",
-      countrySingleOk: "Country check: passed (single country or complete)",
-      countryMultiBlock: "Country check: possible multi-country with missing values. Export blocked.",
-      noDataType: "Please select a data type first",
-      noFile: "Please upload a CSV file first",
-      doneFill: "Fill rules applied."
+      blocked: "Blocked",
+      ready: "Ready",
+
+      errFile: "Please upload a CSV file first.",
+      errCustomerType: "Please select Customer Type.",
+      errDate: "Meeting Date format must be YYYY/MM/DD.",
+      errCategory: "Please select Event Category.",
+      errEventName: "Please input Event Name.",
+      errCountryNeedSelect: "Country is missing. Select one country from dropdown and validate again.",
+      errCountryMulti: "Possible multi-country batch with missing country values. Please fill country row-by-row offline and re-upload.",
+      errRequiredStillMissing: "Required fields are still missing. Export is blocked.",
+
+      okPass: "Validation passed. Ready to export.",
+      stats: (t,v,e) => `Total: ${t} | Valid: ${v} | Error: ${e}`,
+      filePreview: "Output filename preview: "
     }
   };
 
-  const requiredByType = {
-    third_party: ["email", "company", "country"],
-    event_attendee: ["email", "event_name", "country"]
+  const countries = [...new Set([
+"Uzbekistan","Ukraine","Tajikistan","Mongolia","Kyrgyzstan","Kazakhstan","Afghanistan","Georgia","Yemen","United Arab Emirates","Sierra Leone","Saudi Arabia","Qatar","Oman","Liberia","Kuwait","Iraq","Eritrea","Bahrain","Tanzania","Lebanon","Jordan","Vietnam","Singapore","Myanmar","New Zealand","India","Australia","Papua New Guinea","Macao(China)","Hong Kong(China)","Uganda","Türkiye","Somalia","Seychelles","Rwanda","Nigeria","Libya","Kenya","Ethiopia","Egypt","Djibouti","Azerbaijan","Sudan","South Sudan","Iran","Syria","Sri Lanka","Pakistan","Maldives","Malaysia","Bangladesh","Timor-Leste","Zimbabwe","Zambia","South Africa","Namibia","Mozambique","Mauritius","Malawi","Eswatini","Botswana","Angola","Lesotho","The Central African Republic","Guinea","Togo","Gambia","Sao Tome and Principe","Guinea-Bissau","Reunion","Tunisia","Senegal","Morocco","Mauritania","Madagascar","Israel","Cote d'lvoire","Cameroon","Burkina faso","Benin","Algeria","Burundi","Thailand","Philippines","Nauru","Micronesia","Kiribati","Palau","Marshall Islands","Cook Islands","Vanuatu","Samoa","Indonesia","Cambodia","Taiwan(China)","Nepal","Republic of Korea","Japan","Palestine","Laos","Equatorial Guinea","Mali","Niger","Cape Verde","Tonga","Tuvalu","Bhutan","Solomon Islands","Congo","Ghana","Gabon","Fiji","Congo, Democratic Republic of the","Chad","Brunei","Congo(Kinshasa)","Belarus","Russian Federation","Turkmenistan","Armenia","Malta","The Republic of the Congo"
+  ])].sort((a,b)=>a.localeCompare(b));
+
+  const map = {
+    "email":"email","Email":"email","邮箱":"email","邮箱地址":"email",
+    "first name":"firstname","First Name":"firstname","名":"firstname",
+    "last name":"lastname","Last Name":"lastname","姓":"lastname",
+    "company":"company","Company":"company","公司":"company","公司名称":"company",
+    "country":"country","Country":"country","国家":"country",
+    "event name":"event_name","Event Name":"event_name","活动名称":"event_name"
   };
-  const defaultsByType = {
-    third_party: { lead_source: "Purchased List", lifecycle_stage: "lead" },
-    event_attendee: { lead_source: "Event", lifecycle_stage: "lead" }
-  };
-  const exportColumns = ["email","firstname","lastname","company","phone","jobtitle","country","lead_source","event_name","lifecycle_stage"];
-  const mapping = {
-    "邮箱":"email","邮箱地址":"email","email":"email","Email":"email",
-    "名":"firstname","first name":"firstname","First Name":"firstname",
-    "姓":"lastname","last name":"lastname","Last Name":"lastname",
-    "公司":"company","公司名称":"company","company":"company","Company":"company",
-    "电话":"phone","手机号":"phone","phone":"phone","Phone":"phone",
-    "职位":"jobtitle","title":"jobtitle","Title":"jobtitle",
-    "国家":"country","country":"country","Country":"country",
-    "活动名称":"event_name","event":"event_name","event name":"event_name","Event Name":"event_name"
-  };
+
+  const exportCols = ["email","firstname","lastname","company","country","customer_type","meeting_date","lead_source","event_name"];
+  let lang = "zh";
+  let rows = [];
+  let canExport = false;
+  let lastFilename = "";
 
   const el = id => document.getElementById(id);
-  let lang = "zh";
-  let processedRows = [];
-  let invalidRows = [];
-  let currentType = "";
+  const txt = () => i18n[lang];
 
-  const t = k => i18n[lang][k];
+  function initCountryOptions(){
+    const sel = el("countrySelect");
+    sel.innerHTML = `<option value="">--</option>`;
+    countries.forEach(c=>{
+      const op = document.createElement("option");
+      op.value = c; op.textContent = c;
+      sel.appendChild(op);
+    });
+  }
 
-  function setTexts() {
-    el("title").textContent = t("title");
-    el("internalNotice").textContent = t("internalNotice");
-    el("step1Title").textContent = t("step1Title");
-    el("dataTypeLabel").textContent = t("dataTypeLabel");
-    el("stepUploadTitle").textContent = t("stepUploadTitle");
-    el("uploadLabel").textContent = t("uploadLabel");
-    el("uploadHint").textContent = t("uploadHint");
-    el("stepCheckTitle").textContent = t("stepCheckTitle");
-    el("btnProcess").textContent = t("process");
-    el("fillEventLabel").textContent = t("fillEventLabel");
-    el("fillCountryLabel").textContent = t("fillCountryLabel");
-    el("btnApplyFill").textContent = t("applyFill");
-    el("btnExport").textContent = t("exportBtn");
-    el("footerNote").textContent = t("footer");
+  function applyLanguage(){
+    const T = txt();
+    el("title").textContent = T.title;
+    el("notice").textContent = T.notice;
+    el("guideTitle").textContent = T.guideTitle;
+    el("guideList").innerHTML = T.guideList.map(x=>`<li>${x}</li>`).join("");
+
+    el("uploadTitle").textContent = T.uploadTitle;
+    el("uploadLabel").textContent = T.uploadLabel;
+    el("uploadHint").textContent = T.uploadHint;
+
+    el("requiredTitle").textContent = T.requiredTitle;
+    el("countryLabel").textContent = T.countryLabel;
+    el("countryHint").textContent = T.countryHint;
+    el("customerTypeLabel").textContent = T.customerTypeLabel;
+    el("meetingDateLabel").textContent = T.meetingDateLabel;
+
+    el("eventInfoTitle").textContent = T.eventInfoTitle;
+    el("eventCategoryLabel").textContent = T.eventCategoryLabel;
+    el("eventNameLabel").textContent = T.eventNameLabel;
+
+    el("actionTitle").textContent = T.actionTitle;
+    el("btnValidate").textContent = T.validateBtn;
+    el("btnExport").textContent = T.exportBtn;
+
+    refreshCustomerHint();
+  }
+
+  function refreshCustomerHint(){
+    const T = txt();
+    const v = el("customerType").value;
+    if(v === "Hytera Existing Customer") el("customerTypeHint").textContent = T.customerTypeHint1;
+    else if(v === "Potential Contact Third Party Data Base") el("customerTypeHint").textContent = T.customerTypeHint2;
+    else el("customerTypeHint").textContent = "";
   }
 
   function normalizeHeader(h){
-    const key = (h || "").trim();
-    return mapping[key] || mapping[key.toLowerCase()] || key.toLowerCase().replace(/\s+/g, "_");
+    const key = (h||"").trim();
+    return map[key] || map[key.toLowerCase()] || key.toLowerCase().replace(/\s+/g,"_");
   }
 
   function parseCSV(text){
-    const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
-    if (!lines.length) return [];
-    const headers = lines[0].split(",").map(h => normalizeHeader(h.replace(/^"|"$/g, "")));
-    const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(",").map(v => v.replace(/^"|"$/g, "").trim());
-      const obj = {};
-      headers.forEach((h, idx) => obj[h] = cols[idx] ?? "");
-      rows.push(obj);
-    }
-    return rows;
-  }
-
-  function refreshGuide(){
-    currentType = el("dataType").value;
-    const box = el("guideBox");
-    if (!currentType) { box.classList.add("hidden"); return; }
-    box.classList.remove("hidden");
-    const g = i18n[lang].guide[currentType];
-    el("guideTitle").textContent = g.title;
-    const ul = el("guideList");
-    ul.innerHTML = "";
-    g.points.forEach(p => {
-      const li = document.createElement("li");
-      li.textContent = p;
-      ul.appendChild(li);
-    });
-  }
-
-  function processData(){
-    if (!currentType) return alert(t("noDataType"));
-    const f = el("fileInput").files[0];
-    if (!f) return alert(t("noFile"));
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      processedRows = parseCSV(reader.result);
-
-      const defaults = defaultsByType[currentType] || {};
-      processedRows.forEach(r => {
-        Object.keys(defaults).forEach(k => { if (!r[k]) r[k] = defaults[k]; });
-        if (r.email) r.email = String(r.email).trim().toLowerCase();
-      });
-
-      recalcValidation();
-      renderPreview(processedRows.slice(0, 20));
-      el("resultBox").classList.remove("hidden");
+    // 轻量CSV解析（支持双引号内逗号）
+    const lines = text.replace(/\r/g,"").split("\n").filter(x=>x.length>0);
+    if(!lines.length) return [];
+    const splitLine = (line) => {
+      const out = []; let cur = ""; let q = false;
+      for(let i=0;i<line.length;i++){
+        const ch = line[i];
+        if(ch === '"'){
+          if(q && line[i+1] === '"'){ cur += '"'; i++; }
+          else q = !q;
+        } else if(ch === "," && !q){ out.push(cur); cur = ""; }
+        else cur += ch;
+      }
+      out.push(cur);
+      return out.map(v=>v.trim());
     };
-    reader.readAsText(f, "utf-8");
-  }
 
-  function recalcValidation(){
-    invalidRows = [];
-    const req = requiredByType[currentType] || [];
-
-    processedRows.forEach((r, idx) => {
-      const miss = req.filter(k => !String(r[k] || "").trim());
-      if (miss.length) invalidRows.push({ idx, miss });
-    });
-
-    const countries = new Set(processedRows.map(r => (r.country || "").trim()).filter(Boolean));
-    const hasMissingCountry = processedRows.some(r => !String(r.country || "").trim());
-    const countryBlocked = hasMissingCountry && countries.size > 1;
-    el("countryCheckMsg").textContent = countryBlocked ? t("countryMultiBlock") : t("countrySingleOk");
-
-    const needEventFill = currentType === "event_attendee" && processedRows.some(r => !String(r.event_name || "").trim());
-    const needCountryFill = hasMissingCountry;
-    el("dynamicFillBox").classList.toggle("hidden", !(needEventFill || needCountryFill));
-
-    el("totalRowsTxt").textContent = `${t("totalRows")}: ${processedRows.length}`;
-    el("validRowsTxt").textContent = `${t("validRows")}: ${processedRows.length - invalidRows.length}`;
-    el("invalidRowsTxt").textContent = `${t("invalidRows")}: ${invalidRows.length}`;
-
-    const ready = invalidRows.length === 0 && !countryBlocked;
-    const s = el("exportStatus");
-    s.textContent = ready ? t("statusReady") : t("statusBlocked");
-    s.className = "badge " + (ready ? "ok" : "warn");
-    el("btnExport").disabled = !ready;
-  }
-
-  function applyFill(){
-    const eventName = el("fillEvent").value.trim();
-    const country = el("fillCountry").value.trim();
-
-    if (currentType === "event_attendee") {
-      processedRows.forEach(r => { if (!String(r.event_name || "").trim() && eventName) r.event_name = eventName; });
+    const headers = splitLine(lines[0]).map(normalizeHeader);
+    const arr = [];
+    for(let i=1;i<lines.length;i++){
+      const cols = splitLine(lines[i]);
+      const obj = {};
+      headers.forEach((h,idx)=> obj[h] = (cols[idx] ?? "").trim());
+      arr.push(obj);
     }
-    processedRows.forEach(r => { if (!String(r.country || "").trim() && country) r.country = country; });
-
-    recalcValidation();
-    renderPreview(processedRows.slice(0, 20));
-    alert(t("doneFill"));
+    return arr;
   }
 
-  function renderPreview(rows){
-    const table = el("previewTable");
-    let html = "<thead><tr>" + exportColumns.map(c => `<th>${c}</th>`).join("") + "</tr></thead><tbody>";
-    rows.forEach(r => {
-      html += "<tr>" + exportColumns.map(c => `<td>${(r[c] ?? "")}</td>`).join("") + "</tr>";
+  function validDate(v){ return /^\d{4}\/\d{2}\/\d{2}$/.test(v); }
+
+  function setStatus(type, message){
+    const badge = el("statusBadge");
+    const T = txt();
+    if(type === "ok"){ badge.className = "badge ok"; badge.textContent = T.ready; }
+    else if(type === "danger"){ badge.className = "badge danger"; badge.textContent = T.blocked; }
+    else { badge.className = "badge warn"; badge.textContent = T.blocked; }
+    el("statusMsg").textContent = message || "";
+  }
+
+  function renderPreview(data){
+    let html = "<thead><tr>" + exportCols.map(c=>`<th>${c}</th>`).join("") + "</tr></thead><tbody>";
+    data.slice(0,20).forEach(r=>{
+      html += "<tr>" + exportCols.map(c=>`<td>${(r[c] ?? "")}</td>`).join("") + "</tr>";
     });
     html += "</tbody>";
-    table.innerHTML = html;
+    el("previewTable").innerHTML = html;
   }
 
-  function toCSV(rows){
-    const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const lines = [exportColumns.join(",")];
-    rows.forEach(r => lines.push(exportColumns.map(c => esc(r[c])).join(",")));
-    return lines.join("\n");
+  function validateAll(){
+    const T = txt();
+    canExport = false; el("btnExport").disabled = true;
+    el("fileNamePreview").textContent = "";
+    el("stats").textContent = "";
+
+    const file = el("fileInput").files[0];
+    if(!file){ setStatus("danger", T.errFile); return; }
+
+    const customerType = el("customerType").value;
+    const meetingDate = el("meetingDate").value.trim();
+    const selectedCountry = el("countrySelect").value;
+    const eventCategory = el("eventCategory").value;
+    const eventName = el("eventName").value.trim();
+
+    if(!customerType){ setStatus("danger", T.errCustomerType); return; }
+    if(!validDate(meetingDate)){ setStatus("danger", T.errDate); return; }
+    if(!eventCategory){ setStatus("danger", T.errCategory); return; }
+    if(!eventName){ setStatus("danger", T.errEventName); return; }
+
+    const fr = new FileReader();
+    fr.onload = () => {
+      rows = parseCSV(fr.result);
+
+      const existingCountries = new Set(rows.map(r=>(r.country||"").trim()).filter(Boolean));
+      const hasMissingCountry = rows.some(r=>!(r.country||"").trim());
+
+      // 多国家 + 缺失 => 阻断
+      if(existingCountries.size > 1 && hasMissingCountry){
+        setStatus("danger", T.errCountryMulti);
+        return;
+      }
+
+      // 缺失国家 => 仅允许单一国家统一补齐
+      if(hasMissingCountry){
+        if(!selectedCountry){ setStatus("danger", T.errCountryNeedSelect); return; }
+        rows.forEach(r=>{ if(!(r.country||"").trim()) r.country = selectedCountry; });
+      }
+
+      rows.forEach(r=>{
+        if(r.email) r.email = String(r.email).trim().toLowerCase();
+        r.customer_type = customerType;
+        r.meeting_date = meetingDate;
+        r.lead_source = "Event";
+        if(!(r.event_name||"").trim()) r.event_name = eventName;
+      });
+
+      const required = ["country","customer_type","meeting_date"];
+      const invalid = rows.filter(r => required.some(k => !(r[k]||"").trim()));
+      const total = rows.length, err = invalid.length, ok = total - err;
+
+      if(err > 0){
+        setStatus("danger", T.errRequiredStillMissing);
+        el("stats").textContent = T.stats(total, ok, err);
+        renderPreview(rows);
+        return;
+      }
+
+      const d = new Date();
+      const ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+      const c = (rows[0]?.country || "NA").replace(/\s+/g,"_");
+      const cat = eventCategory.replace(/\s+/g,"-");
+      const evn = eventName.replace(/\s+/g,"-");
+      lastFilename = `HubSpot_OfflineEvent_${c}_${cat}_${evn}_${ymd}_Clean.csv`;
+
+      setStatus("ok", T.okPass);
+      el("fileNamePreview").textContent = T.filePreview + lastFilename;
+      el("stats").textContent = T.stats(total, ok, err);
+      renderPreview(rows);
+
+      canExport = true;
+      el("btnExport").disabled = false;
+    };
+    fr.readAsText(file, "utf-8");
   }
 
   function exportCSV(){
-    const req = requiredByType[currentType] || [];
-    const valid = processedRows.filter(r => req.every(k => String(r[k] || "").trim()));
+    if(!canExport) return;
+    const esc = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
+    const lines = [exportCols.join(",")];
+    rows.forEach(r => lines.push(exportCols.map(c => esc(r[c])).join(",")));
 
-    const csv = toCSV(valid);
-    const d = new Date();
-    const ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
-    const country = (valid[0]?.country || "NA").replace(/\s+/g, "_");
-    const eventName = (valid[0]?.event_name || "NA").replace(/\s+/g, "_");
-    const dtype = currentType === "third_party" ? "ThirdParty" : "Event";
-    const filename = currentType === "event_attendee"
-      ? `HubSpot_${dtype}_${country}_${eventName}_${ymd}_Clean.csv`
-      : `HubSpot_${dtype}_${country}_${ymd}_Clean.csv`;
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([lines.join("\n")], {type:"text/csv;charset=utf-8;"});
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = filename;
+    a.download = lastFilename || "HubSpot_OfflineEvent_Export.csv";
     a.click();
     URL.revokeObjectURL(a.href);
   }
 
-  el("btnZh").addEventListener("click", () => { lang = "zh"; setTexts(); refreshGuide(); });
-  el("btnEn").addEventListener("click", () => { lang = "en"; setTexts(); refreshGuide(); });
-  el("dataType").addEventListener("change", refreshGuide);
-  el("btnProcess").addEventListener("click", processData);
-  el("btnApplyFill").addEventListener("click", applyFill);
+  el("btnZh").addEventListener("click", ()=>{ lang="zh"; applyLanguage(); });
+  el("btnEn").addEventListener("click", ()=>{ lang="en"; applyLanguage(); });
+  el("customerType").addEventListener("change", refreshCustomerHint);
+  el("btnValidate").addEventListener("click", validateAll);
   el("btnExport").addEventListener("click", exportCSV);
 
-  setTexts();
+  initCountryOptions();
+  applyLanguage();
 })();
 </script>
 </body>
